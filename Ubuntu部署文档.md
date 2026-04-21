@@ -10,7 +10,7 @@
 
 当前代码默认监听：
 
-- `127.0.0.1:15555`
+- `127.0.0.1:15556`
 
 线上已知域名为：
 
@@ -32,7 +32,7 @@
 Caddy : 15000 / 15001
         |
         v
-127.0.0.1:15555
+127.0.0.1:15556
         |
         v
 UY-NB-Meter (Python / Flask)
@@ -154,7 +154,7 @@ python server.py
 然后在服务器本机验证：
 
 ```bash
-curl http://127.0.0.1:15555/
+curl http://127.0.0.1:15556/
 ```
 
 如果返回 HTML 页面，说明程序已正常启动。
@@ -170,13 +170,13 @@ curl http://127.0.0.1:15555/
 当前 `server.py` 最后是：
 
 ```python
-app.run(debug=True, host='127.0.0.1', port=15555)
+app.run(debug=True, host='127.0.0.1', port=15556)
 ```
 
 在 Ubuntu 生产环境，建议至少先把它改成：
 
 ```python
-app.run(debug=False, host='127.0.0.1', port=15555)
+app.run(debug=False, host='127.0.0.1', port=15556)
 ```
 
 如果暂时不改代码，也可以先部署，但不建议长期保留 `debug=True`。
@@ -255,7 +255,7 @@ sudo nano /etc/caddy/Caddyfile
 # 用途: Web 控制台 (安全登录) & 支持 SSL 的新水表
 # ---------------------------------------------------------
 https://hmwssbapi.bovetech.cn:15001 {
-    reverse_proxy 127.0.0.1:15555
+    reverse_proxy 127.0.0.1:15556
 }
 
 # ---------------------------------------------------------
@@ -264,7 +264,7 @@ https://hmwssbapi.bovetech.cn:15001 {
 # ---------------------------------------------------------
 http://hmwssbapi.bovetech.cn:15000 {
     handle /HMWSSBAPI* {
-        reverse_proxy 127.0.0.1:15555
+        reverse_proxy 127.0.0.1:15556
     }
 
     handle {
@@ -334,7 +334,7 @@ sudo ufw status
 说明：
 
 - 需要放行 `15000/tcp` 与 `15001/tcp`
-- 不建议直接放行 15555，因为该端口只应供本机访问
+- 不建议直接放行 15556，因为该端口只应供本机访问
 
 ## 13. 接口验证
 
@@ -428,7 +428,7 @@ WantedBy=multi-user.target
 # 用途: Web 控制台 (安全登录) & 支持 SSL 的新水表
 # ---------------------------------------------------------
 https://hmwssbapi.bovetech.cn:15001 {
-    reverse_proxy 127.0.0.1:15555
+    reverse_proxy 127.0.0.1:15556
 }
 
 # ---------------------------------------------------------
@@ -437,7 +437,7 @@ https://hmwssbapi.bovetech.cn:15001 {
 # ---------------------------------------------------------
 http://hmwssbapi.bovetech.cn:15000 {
     handle /HMWSSBAPI* {
-        reverse_proxy 127.0.0.1:15555
+        reverse_proxy 127.0.0.1:15556
     }
 
     handle {
@@ -469,7 +469,7 @@ sudo journalctl -u meter-demo -n 100 --no-pager
 通常表示 Caddy 没有成功连到 Flask 服务。检查：
 
 ```bash
-curl http://127.0.0.1:15555/
+curl http://127.0.0.1:15556/
 sudo systemctl status uy-nb-meter
 sudo systemctl status caddy
 ```

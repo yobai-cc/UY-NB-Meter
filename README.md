@@ -39,13 +39,13 @@ python3 server.py
 默认启动参数：
 
 - 地址：`127.0.0.1`
-- 端口：`15555`
+- 端口：`15556`
 - Debug：`True`
 
 启动后可访问：
 
-- 首页：`http://127.0.0.1:15555/`
-- 上报接口：`http://127.0.0.1:15555/HMWSSBAPI/PostMeterReadingData`
+- 首页：`http://127.0.0.1:15556/`
+- 上报接口：`http://127.0.0.1:15556/HMWSSBAPI/PostMeterReadingData`
 
 ## 接口示例
 
@@ -53,7 +53,7 @@ python3 server.py
 
 ```bash
 BODY="$(printf 'A%.0s' {1..158})"
-curl -i "http://127.0.0.1:15555/HMWSSBAPI/PostMeterReadingData" \
+curl -i "http://127.0.0.1:15556/HMWSSBAPI/PostMeterReadingData" \
   -H "Content-Type: text/plain" \
   --data-binary "$BODY"
 ```
@@ -62,7 +62,7 @@ curl -i "http://127.0.0.1:15555/HMWSSBAPI/PostMeterReadingData" \
 
 ```bash
 BODY="$(printf 'B%.0s' {1..158})"
-curl -i "http://127.0.0.1:15555/HMWSSBAPI/PostMeterReadingData" \
+curl -i "http://127.0.0.1:15556/HMWSSBAPI/PostMeterReadingData" \
   -H "Authorization: Basic ZWRwOk5hdmF5dWdhMTIz" \
   -H "Content-Type: text/plain" \
   --data-binary "$BODY"
@@ -71,7 +71,7 @@ curl -i "http://127.0.0.1:15555/HMWSSBAPI/PostMeterReadingData" \
 失败示例：
 
 ```bash
-curl -i "http://127.0.0.1:15555/HMWSSBAPI/PostMeterReadingData" \
+curl -i "http://127.0.0.1:15556/HMWSSBAPI/PostMeterReadingData" \
   -H "Authorization: Basic invalid" \
   -H "Content-Type: text/plain" \
   --data-binary "short"

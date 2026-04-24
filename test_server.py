@@ -66,6 +66,8 @@ class ServerTests(unittest.TestCase):
         self.assertIn("Hex Text Length", html)
         self.assertIn("Protocol Byte Length", html)
         self.assertIn("Decode Status", html)
+        self.assertIn("Version", html)
+        self.assertIn(server.APP_VERSION, html)
 
 
 if __name__ == "__main__":

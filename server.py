@@ -12,6 +12,7 @@ VALID_AUTH_KEYS = [
 ]
 
 EXPECTED_BODY_LENGTH = 158
+APP_VERSION = "v2026.04.24-hex"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -25,6 +26,7 @@ HTML_TEMPLATE = """
         .header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; padding: 16px 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
         .header h1 { margin: 0; font-size: 22px; }
         .header .meta { font-size: 12px; color: #666; margin-top: 4px; }
+        .version-badge { display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 999px; background: #c62828; color: #fff; font-size: 13px; font-weight: bold; letter-spacing: 0.3px; }
         .actions a { color: #c62828; text-decoration: none; font-size: 13px; }
         table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
         th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; vertical-align: top; font-size: 12px; }
@@ -42,6 +44,7 @@ HTML_TEMPLATE = """
         <div>
             <h1>HMWSSB API Request Log</h1>
             <div class="meta">Endpoint: /HMWSSBAPI/PostMeterReadingData | Accept rule: decoded hex payload length must equal 158 bytes</div>
+            <div class="version-badge">Version {{ version }}</div>
         </div>
         <div class="actions">
             <a href="/clear">Clear History</a>
@@ -149,7 +152,7 @@ def plain_text_response(body, status_code):
 @app.route('/')
 def index():
     display_data = sorted(HISTORY_DATA, key=lambda item: item["Pkey"], reverse=True)
-    return render_template_string(HTML_TEMPLATE, data=display_data)
+    return render_template_string(HTML_TEMPLATE, data=display_data, version=APP_VERSION)
 
 
 @app.route('/clear')

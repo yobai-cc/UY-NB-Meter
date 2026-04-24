@@ -41,7 +41,7 @@ HTML_TEMPLATE = """
     <div class="header">
         <div>
             <h1>HMWSSB API Request Log</h1>
-            <div class="meta">Endpoint: /HMWSSBAPI/PostMeterReadingData | Accept rule: raw body length must equal 158 bytes</div>
+            <div class="meta">Endpoint: /HMWSSBAPI/PostMeterReadingData | Accept rule: decoded hex payload length must equal 158 bytes</div>
         </div>
         <div class="actions">
             <a href="/clear">Clear History</a>
@@ -54,8 +54,11 @@ HTML_TEMPLATE = """
                 <th>Time</th>
                 <th>Result</th>
                 <th>Auth</th>
-                <th>Body Length</th>
+                <th>Raw Body Text Length</th>
+                <th>Hex Text Length</th>
+                <th>Protocol Byte Length</th>
                 <th>Field Count</th>
+                <th>Decode Status</th>
                 <th>Error</th>
                 <th>Raw Data</th>
             </tr>
@@ -72,15 +75,18 @@ HTML_TEMPLATE = """
                     {% endif %}
                 </td>
                 <td>{{ item.AuthDisplay }}</td>
-                <td>{{ item.BodyByteLength }}</td>
+                <td>{{ item.RawBodyTextLength }}</td>
+                <td>{{ item.HexTextLength }}</td>
+                <td>{{ item.ProtocolByteLength }}</td>
                 <td>{{ item.FieldCount }}</td>
+                <td>{{ item.HexDecodeStatus }}</td>
                 <td>{{ item.ErrorType }}{% if item.ErrorMsg %}: {{ item.ErrorMsg }}{% endif %}</td>
                 <td class="mono">{{ item.RawData }}</td>
             </tr>
             {% endfor %}
             {% if not data %}
             <tr>
-                <td colspan="7">No requests recorded.</td>
+                <td colspan="10">No requests recorded.</td>
             </tr>
             {% endif %}
         </tbody>
@@ -91,15 +97,31 @@ HTML_TEMPLATE = """
 """
 
 
-def record_entry(success, raw_data, auth_header, auth_passed, length_passed, body_byte_length, field_count, error_type="", error_msg=""):
+def record_entry(
+    success,
+    raw_data,
+    auth_header,
+    auth_passed,
+    length_passed,
+    raw_body_text_length,
+    hex_text_length,
+    protocol_byte_length,
+    field_count,
+    hex_decode_status,
+    error_type="",
+    error_msg="",
+):
     entry = {
         "Pkey": len(HISTORY_DATA) + 1,
         "Time": datetime.datetime.now().isoformat(timespec="seconds"),
         "Success": success,
         "AuthPassed": auth_passed,
         "LengthPassed": length_passed,
-        "BodyByteLength": body_byte_length,
+        "RawBodyTextLength": raw_body_text_length,
+        "HexTextLength": hex_text_length,
+        "ProtocolByteLength": protocol_byte_length,
         "FieldCount": field_count,
+        "HexDecodeStatus": hex_decode_status,
         "RawData": raw_data,
         "ErrorType": error_type,
         "ErrorMsg": error_msg,
@@ -141,12 +163,41 @@ def clear_history():
 def post_reading():
     raw_bytes = request.get_data(cache=True)
     raw_text = raw_bytes.decode("utf-8", errors="replace")
-    body_byte_length = len(raw_bytes)
+    raw_body_text_length = len(raw_bytes)
     field_count = len(raw_text.split(',')) if raw_text else 0
+
+    stripped_text = raw_text.strip()
+    hex_text = "".join(stripped_text.split())
+    hex_text_length = len(hex_text)
+    protocol_byte_length = 0
+    hex_decode_status = "Empty"
+    error_type = ""
+    error_msg = ""
+
+    if not hex_text:
+        error_type = "Empty Body"
+        error_msg = "Request body is empty after trimming whitespace"
+    elif not all(c in "0123456789abcdefABCDEF" for c in hex_text):
+        hex_decode_status = "Not hex text"
+        error_type = "Not Hex Text"
+        error_msg = "Request body contains non-hex characters after trimming whitespace"
+    elif hex_text_length % 2 != 0:
+        hex_decode_status = "Odd length"
+        error_type = "Odd Hex Length"
+        error_msg = "Hex text length must be even"
+    else:
+        try:
+            payload = bytes.fromhex(hex_text)
+            protocol_byte_length = len(payload)
+            hex_decode_status = "OK"
+        except ValueError:
+            hex_decode_status = "Decode failed"
+            error_type = "Hex Decode Failed"
+            error_msg = "Request body could not be decoded as hex"
 
     auth_header = request.headers.get("Authorization")
     auth_passed = (auth_header is None) or (auth_header in VALID_AUTH_KEYS)
-    length_passed = body_byte_length == EXPECTED_BODY_LENGTH
+    length_passed = hex_decode_status == "OK" and protocol_byte_length == EXPECTED_BODY_LENGTH
 
     if not auth_passed:
         record_entry(
@@ -155,24 +206,34 @@ def post_reading():
             auth_header=auth_header,
             auth_passed=False,
             length_passed=length_passed,
-            body_byte_length=body_byte_length,
+            raw_body_text_length=raw_body_text_length,
+            hex_text_length=hex_text_length,
+            protocol_byte_length=protocol_byte_length,
             field_count=field_count,
+            hex_decode_status=hex_decode_status,
             error_type="Auth Failed",
             error_msg="Authorization header is not in VALID_AUTH_KEYS",
         )
         return plain_text_response("faile", 401)
 
     if not length_passed:
+        if not error_type:
+            error_type = "Protocol Length Failed"
+            error_msg = f"Decoded hex payload length must be {EXPECTED_BODY_LENGTH} bytes"
+
         record_entry(
             success=False,
             raw_data=raw_text,
             auth_header=auth_header,
             auth_passed=True,
             length_passed=False,
-            body_byte_length=body_byte_length,
+            raw_body_text_length=raw_body_text_length,
+            hex_text_length=hex_text_length,
+            protocol_byte_length=protocol_byte_length,
             field_count=field_count,
-            error_type="Length Failed",
-            error_msg=f"Raw body length must be {EXPECTED_BODY_LENGTH} bytes",
+            hex_decode_status=hex_decode_status,
+            error_type=error_type,
+            error_msg=error_msg,
         )
         return plain_text_response("faile", 400)
 
@@ -182,8 +243,11 @@ def post_reading():
         auth_header=auth_header,
         auth_passed=True,
         length_passed=True,
-        body_byte_length=body_byte_length,
+        raw_body_text_length=raw_body_text_length,
+        hex_text_length=hex_text_length,
+        protocol_byte_length=protocol_byte_length,
         field_count=field_count,
+        hex_decode_status=hex_decode_status,
     )
     return plain_text_response("OK", 200)
 

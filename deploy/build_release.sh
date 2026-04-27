@@ -16,6 +16,7 @@ tar \
   --exclude='__pycache__' \
   --exclude='.env' \
   --exclude='*.pyc' \
+  --exclude="${ARCHIVE_NAME}" \
   -czf "${TMP_ARCHIVE}" \
   -C "${APP_DIR}" \
   .

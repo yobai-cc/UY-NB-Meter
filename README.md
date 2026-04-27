@@ -197,6 +197,7 @@ EOF
 - `PIP_REGION=mainland` 时，优先走清华镜像，失败后回退到官方 PyPI
 - `PIP_REGION=overseas` 时，优先走官方 PyPI，失败后回退到清华镜像
 - 如果显式设置了 `PIP_INDEX_URL`，则只使用该自定义源
+- `PIP_RESUME_RETRIES` 只会在当前 pip 支持 `--resume-retries` 时启用，旧 pip 会自动跳过
 
 推荐傻瓜命令：
 

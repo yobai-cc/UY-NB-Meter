@@ -74,6 +74,11 @@ die() {
   exit 1
 }
 
+pip_supports_option() {
+  local option="$1"
+  "${VENV_DIR}/bin/python" -m pip install --help 2>/dev/null | grep -q -- "${option}"
+}
+
 run_pip_install() {
   local index_url="$1"
   local trusted_hosts="$2"
@@ -82,9 +87,12 @@ run_pip_install() {
   local pip_args=(
     --timeout "${PIP_TIMEOUT}"
     --retries "${PIP_RETRIES}"
-    --resume-retries "${PIP_RESUME_RETRIES}"
   )
   local host
+
+  if [[ -n "${PIP_RESUME_RETRIES}" ]] && pip_supports_option "--resume-retries"; then
+    pip_args+=(--resume-retries "${PIP_RESUME_RETRIES}")
+  fi
 
   if [[ -n "${index_url}" ]]; then
     pip_args+=(--index-url "${index_url}")
@@ -155,6 +163,12 @@ install_requirements() {
     else
       return 1
     fi
+  fi
+
+  if pip_supports_option "--resume-retries"; then
+    log "pip supports --resume-retries; resumable downloads enabled"
+  else
+    log "pip does not support --resume-retries; continuing with compatible retry options"
   fi
 
   log "installing dependencies with primary index: ${primary_index:-default}"

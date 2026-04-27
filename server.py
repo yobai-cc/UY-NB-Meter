@@ -43,6 +43,7 @@ def load_bytes_env(name):
 
 
 app.config.setdefault("AES_GCM_ENABLED", env_flag("AES_GCM_ENABLED", False))
+app.config.setdefault("AES_GCM_ENCRYPT_RESPONSE", env_flag("AES_GCM_ENCRYPT_RESPONSE", app.config["AES_GCM_ENABLED"]))
 app.config.setdefault("AES_GCM_KEY", load_bytes_env("AES_GCM_KEY") or DEFAULT_AES_GCM_KEY)
 app.config.setdefault(
     "AES_GCM_RESPONSE_KEY",
@@ -56,6 +57,10 @@ app.config.setdefault("AES_GCM_ACTIVE_KEY_NAME", os.getenv("AES_GCM_ACTIVE_KEY_N
 
 def aes_gcm_enabled():
     return bool(app.config.get("AES_GCM_ENABLED"))
+
+
+def encrypt_response_enabled():
+    return bool(app.config.get("AES_GCM_ENCRYPT_RESPONSE"))
 
 
 def auth_passed_for_header(auth_header):
@@ -138,6 +143,7 @@ def get_key_management_info():
     store = load_key_store()
     return {
         "aes_enabled": aes_gcm_enabled(),
+        "response_encrypt_enabled": encrypt_response_enabled(),
         "active_key_name": store.get("active_key_name") or app.config.get("AES_GCM_ACTIVE_KEY_NAME"),
         "key_names": sorted(store.get("keys", {}).keys()),
         "key_store_path": get_key_store_path(),
@@ -237,6 +243,10 @@ HTML_TEMPLATE = """
                 <span class="panel-value">{{ 'Enabled' if key_info.aes_enabled else 'Disabled (plaintext mode)' }}</span>
             </div>
             <div class="panel-item">
+                <span class="panel-label">Response Format</span>
+                <span class="panel-value">{{ 'Encrypted base64' if key_info.response_encrypt_enabled else 'Plaintext' }}</span>
+            </div>
+            <div class="panel-item">
                 <span class="panel-label">Active Key</span>
                 <span class="panel-value">{{ key_info.active_key_name or 'None' }}</span>
             </div>
@@ -273,7 +283,8 @@ HTML_TEMPLATE = """
                     <li>Encrypted request format: <code>base64(12-byte nonce + AES-GCM ciphertext + 16-byte tag)</code></li>
                     <li>Decrypted request body must be hex text, for example <code>AA</code> repeated {{ key_info.expected_body_length }} times.</li>
                     <li>Decoded protocol payload length must equal <code>{{ key_info.expected_body_length }}</code> bytes.</li>
-                    <li>Success response is <code>OK</code>; failure response is <code>faile</code>. When AES mode is enabled, responses are AES-GCM encrypted.</li>
+                    <li>Success response is <code>OK</code>; failure response is <code>faile</code>.</li>
+                    <li>Response format is controlled by <code>AES_GCM_ENCRYPT_RESPONSE</code>: encrypted base64 when enabled, plaintext when disabled.</li>
                 </ul>
             </div>
             <div class="guide-block">
@@ -409,7 +420,7 @@ def plain_text_response(body, status_code):
 
 
 def response_text(plain_text, status_code):
-    if not aes_gcm_enabled():
+    if not encrypt_response_enabled():
         return plain_text_response(plain_text, status_code)
 
     try:
@@ -487,7 +498,7 @@ def post_reading():
     raw_body_text_length = len(raw_bytes)
 
     request_crypto_status = "Plaintext"
-    response_crypto_status = "Plaintext"
+    response_crypto_status = "Encrypted" if encrypt_response_enabled() else "Plaintext"
     decrypted_text = raw_text
     error_type = ""
     error_msg = ""
@@ -498,11 +509,9 @@ def post_reading():
         try:
             decrypted_text = decrypt_request_body(raw_text.strip())
             request_crypto_status = "Decrypted"
-            response_crypto_status = "Encrypted"
         except Exception as exc:
             decrypted_text = ""
             request_crypto_status = "Decrypt failed"
-            response_crypto_status = "Encrypted"
             error_type = "Decrypt Failed"
             error_msg = str(exc)
 

@@ -19,6 +19,7 @@
 ## AES 协议说明
 
 是否启用 AES 由 `AES_GCM_ENABLED` 控制。
+响应是否加密由 `AES_GCM_ENCRYPT_RESPONSE` 控制。
 
 - 当 `AES_GCM_ENABLED=false` 时：
   - 请求体按明文处理
@@ -29,8 +30,8 @@
   - 算法为 `AES-128-GCM`
   - 解密后的明文必须是十六进制文本
   - 十六进制文本解码后长度必须正好等于 `158` bytes
-  - 成功响应会加密后返回 `OK`
-  - 失败响应会加密后返回 `faile`
+  - 当 `AES_GCM_ENCRYPT_RESPONSE=true` 时，响应会加密后返回
+  - 当 `AES_GCM_ENCRYPT_RESPONSE=false` 时，响应会直接返回明文 `OK` 或 `faile`
 
 固定测试 key：
 
@@ -41,6 +42,7 @@
 
 - `AES_GCM_KEY`
 - `AES_GCM_RESPONSE_KEY`
+- `AES_GCM_ENCRYPT_RESPONSE`
 
 ## 请求体验证规则
 

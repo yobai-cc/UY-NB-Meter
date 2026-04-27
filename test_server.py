@@ -41,6 +41,7 @@ def decrypt_response(encoded, key=DEFAULT_TEST_KEY, aad=None):
 def crypto_config(key_store_path=None):
     return {
         "AES_GCM_ENABLED": True,
+        "AES_GCM_ENCRYPT_RESPONSE": True,
         "AES_GCM_KEY": DEFAULT_TEST_KEY,
         "AES_GCM_RESPONSE_KEY": DEFAULT_TEST_KEY,
         "AES_GCM_REQUEST_AAD": None,
@@ -53,6 +54,7 @@ def crypto_config(key_store_path=None):
 class ServerTests(unittest.TestCase):
     @mock.patch.dict(server.app.config, {
         "AES_GCM_ENABLED": True,
+        "AES_GCM_ENCRYPT_RESPONSE": True,
         "AES_GCM_KEY": BUILTIN_REQUEST_KEY,
         "AES_GCM_RESPONSE_KEY": BUILTIN_RESPONSE_KEY,
         "AES_GCM_REQUEST_AAD": None,
@@ -72,6 +74,30 @@ class ServerTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(decrypt_response(response.get_data(as_text=True), key=BUILTIN_RESPONSE_KEY), "OK")
+
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": True,
+        "AES_GCM_ENCRYPT_RESPONSE": False,
+        "AES_GCM_KEY": BUILTIN_REQUEST_KEY,
+        "AES_GCM_RESPONSE_KEY": BUILTIN_RESPONSE_KEY,
+        "AES_GCM_REQUEST_AAD": None,
+        "AES_GCM_RESPONSE_AAD": None,
+        "AES_GCM_KEY_STORE_PATH": None,
+        "AES_GCM_ACTIVE_KEY_NAME": "default",
+    }, clear=False)
+    def test_encrypted_request_can_return_plaintext_response(self):
+        client = build_client()
+        encrypted_body = encrypt_request("AA" * 158, key=BUILTIN_REQUEST_KEY)
+
+        response = client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data=encrypted_body,
+            content_type="text/plain",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_data(as_text=True), "OK")
+        self.assertEqual(server.HISTORY_DATA[-1]["ResponseCryptoStatus"], "Plaintext")
 
     @mock.patch.dict(server.app.config, crypto_config(), clear=False)
     def test_encrypted_hex_payload_with_158_protocol_bytes_passes(self):
@@ -191,6 +217,8 @@ class ServerTests(unittest.TestCase):
                 self.assertIn("Generate AES-128 Key", html)
                 self.assertIn("Test Usage Guide", html)
                 self.assertIn("Failure Reason Map", html)
+                self.assertIn("AES_GCM_ENCRYPT_RESPONSE", html)
+                self.assertIn("Encrypted base64", html)
 
     @mock.patch.dict(server.app.config, {
         "AES_GCM_KEY": BUILTIN_REQUEST_KEY,

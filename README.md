@@ -44,6 +44,36 @@
 - `AES_GCM_RESPONSE_KEY`
 - `AES_GCM_ENCRYPT_RESPONSE`
 
+## 首页按钮使用
+
+首页 `Key Management` 面板中有两个运行时按钮组：
+
+- `AES-GCM Mode`
+- `Response Format`
+
+`AES-GCM Mode` 的作用：
+
+- `Enabled`：请求体按 AES-128-GCM 密文处理，服务端会先做 base64 解码和 AES 解密
+- `Disabled`：请求体按明文 hex 文本处理，便于直接用 Postman 或 curl 发送 `AA...` 这类测试数据
+
+`Response Format` 的作用：
+
+- `Encrypted`：响应体返回 AES-GCM 加密后的 base64
+- `Plaintext`：响应体直接返回明文 `OK` 或 `faile`
+
+常见使用场景：
+
+- 联调真实设备协议：`AES-GCM Mode = Enabled`，`Response Format = Encrypted`
+- 排查请求解密问题：`AES-GCM Mode = Enabled`，`Response Format = Plaintext`
+- 手工构造明文请求体测试长度和 hex 校验：`AES-GCM Mode = Disabled`，`Response Format = Plaintext`
+- 只验证响应加密格式：`AES-GCM Mode = Disabled`，`Response Format = Encrypted`
+
+页面操作说明：
+
+- 点击按钮后，页面会提交 `POST /aes-mode` 或 `POST /response-encryption`
+- 切换立即作用于当前进程，无需重启服务
+- 这是运行时开关，只影响当前服务实例，不会自动回写 `.env`
+
 ## 请求体验证规则
 
 当前版本不解析业务字段，只验证协议包格式。

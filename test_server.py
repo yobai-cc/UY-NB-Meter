@@ -315,6 +315,25 @@ class ServerTests(unittest.TestCase):
         self.assertIn("Plaintext", response.get_data(as_text=True))
 
     @mock.patch.dict(server.app.config, crypto_config(), clear=False)
+    def test_toggle_buttons_support_plaintext_debug_combination(self):
+        client = build_client()
+
+        client.post("/aes-mode", data={"enabled": "false"})
+        response = client.post(
+            "/response-encryption",
+            data={"enabled": "false"},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(server.app.config["AES_GCM_ENABLED"])
+        self.assertFalse(server.app.config["AES_GCM_ENCRYPT_RESPONSE"])
+
+        html = response.get_data(as_text=True)
+        self.assertIn("Disabled (plaintext mode)", html)
+        self.assertIn("Response: plaintext", html)
+
+    @mock.patch.dict(server.app.config, crypto_config(), clear=False)
     def test_toggle_response_encryption_rejects_invalid_value(self):
         client = build_client()
 

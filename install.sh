@@ -12,6 +12,7 @@ SOURCE_REF="${SOURCE_REF:-main}"
 RUN_TESTS="${RUN_TESTS:-0}"
 INSTALL_SERVICE="${INSTALL_SERVICE:-0}"
 ENV_TEMPLATE="${ENV_TEMPLATE:-.env.example}"
+SUDO_BIN="${SUDO_BIN:-sudo}"
 
 usage() {
   cat <<EOF
@@ -34,6 +35,7 @@ Environment overrides:
   SOURCE_REF       Default: ${SOURCE_REF}
   RUN_TESTS        1 to run unittest
   INSTALL_SERVICE  1 to install/restart systemd service
+  SUDO_BIN         Default: ${SUDO_BIN}
 EOF
 }
 
@@ -48,6 +50,23 @@ die() {
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
+}
+
+have_sudo() {
+  command -v "${SUDO_BIN}" >/dev/null 2>&1
+}
+
+run_maybe_sudo() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+  else
+    have_sudo || die "permission required for ${TARGET_DIR}; install ${SUDO_BIN} or choose a writable TARGET_DIR"
+    "${SUDO_BIN}" "$@"
+  fi
+}
+
+current_group_name() {
+  id -gn
 }
 
 resolve_release_url() {
@@ -104,7 +123,29 @@ resolve_payload_dir() {
 }
 
 prepare_target_dir() {
-  mkdir -p "${TARGET_DIR}"
+  local parent_dir
+
+  parent_dir="$(dirname "${TARGET_DIR}")"
+
+  if [[ -d "${TARGET_DIR}" ]]; then
+    if [[ ! -w "${TARGET_DIR}" ]]; then
+      log "granting write access to ${TARGET_DIR} for $(id -un)"
+      run_maybe_sudo chown -R "$(id -un):$(current_group_name)" "${TARGET_DIR}"
+    fi
+    return
+  fi
+
+  if [[ -w "${parent_dir}" ]]; then
+    mkdir -p "${TARGET_DIR}"
+    return
+  fi
+
+  log "creating ${TARGET_DIR} with elevated privileges"
+  run_maybe_sudo mkdir -p "${TARGET_DIR}"
+  if [[ "$(id -u)" -ne 0 ]]; then
+    log "granting ownership of ${TARGET_DIR} to $(id -un)"
+    run_maybe_sudo chown -R "$(id -un):$(current_group_name)" "${TARGET_DIR}"
+  fi
 }
 
 preserve_env() {
@@ -163,6 +204,9 @@ main() {
       require_cmd curl
       require_cmd tar
       require_cmd rsync
+      if [[ "$(id -u)" -ne 0 ]] && [[ "${INSTALL_SERVICE}" == "1" ]]; then
+        have_sudo || die "INSTALL_SERVICE=1 requires ${SUDO_BIN} when not running as root"
+      fi
 
       work_dir="$(mktemp -d)"
       archive_path="${work_dir}/${RELEASE_FILE}"

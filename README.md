@@ -156,6 +156,7 @@ curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.s
 
 - `install.sh` 只下载 Release 包并解压安装，不依赖 `git`
 - 如果 `latest` 或指定 tag 下没有找到 Release 资产，会自动回退到 GitHub 源码 tarball
+- 如果 `TARGET_DIR` 指向 `/opt/...` 这类受限目录，脚本会自动尝试用 `sudo` 创建目录并把目录所有权交给当前用户
 - 实际部署逻辑仍在 `deploy/deploy_update.sh`
 - 首次执行会自动从 `.env.example` 生成 `.env`
 - 更新时会保留本地 `.env` 和 `.venv`
@@ -196,6 +197,20 @@ EOF
 - `PIP_REGION=mainland` 时，优先走清华镜像，失败后回退到官方 PyPI
 - `PIP_REGION=overseas` 时，优先走官方 PyPI，失败后回退到清华镜像
 - 如果显式设置了 `PIP_INDEX_URL`，则只使用该自定义源
+
+推荐傻瓜命令：
+
+中国大陆服务器，安装到 `/opt/UY-NB-Meter` 并注册服务：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | TARGET_DIR=/opt/UY-NB-Meter PIP_REGION=mainland INSTALL_SERVICE=1 bash -s -- install
+```
+
+海外服务器，安装到 `/opt/UY-NB-Meter` 并注册服务：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | TARGET_DIR=/opt/UY-NB-Meter PIP_REGION=overseas INSTALL_SERVICE=1 bash -s -- install
+```
 
 发布 Release 包：
 

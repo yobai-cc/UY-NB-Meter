@@ -22,6 +22,7 @@ usage() {
 Usage:
   $(basename "$0") install
   $(basename "$0") update
+  $(basename "$0") refresh
   $(basename "$0") restart
   $(basename "$0") status
   $(basename "$0") logs
@@ -172,6 +173,15 @@ update_app() {
   log "update finished"
 }
 
+refresh_app() {
+  load_env
+  ensure_venv
+  install_requirements
+  run_tests
+  restart_service
+  log "refresh finished"
+}
+
 main() {
   local command="${1:-}"
 
@@ -181,6 +191,9 @@ main() {
       ;;
     update)
       update_app
+      ;;
+    refresh)
+      refresh_app
       ;;
     restart)
       restart_service

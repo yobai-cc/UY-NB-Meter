@@ -1,0 +1,27 @@
+name: Build Release Package
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build release archive
+        run: bash deploy/build_release.sh
+
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: UY-NB-Meter-release.tar.gz
+          generate_release_notes: true

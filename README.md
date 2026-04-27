@@ -118,13 +118,14 @@ bash deploy/deploy_update.sh update
 
 - `install` 会创建 `.venv` 并安装 `requirements.txt`
 - `update` 会先执行 `git fetch/pull --ff-only`，再更新依赖并重启 `systemd` 服务
+- `refresh` 只重新安装依赖并重启服务，不执行任何 git 操作
 - 若仓库存在未提交改动，`update` 会停止，避免覆盖本地修改
 - 服务模板文件是 `deploy/uy-nb-meter.service.template`
 - 环境变量建议写在项目根目录 `.env`
 
 ## GitHub 一键执行
 
-如果脚本已经推到 GitHub，可以直接通过 Raw 地址执行：
+如果脚本已经推到 GitHub，并且 Release 中上传了固定文件名 `UY-NB-Meter-release.tar.gz`，可以直接通过 Raw 地址执行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | bash -s -- install
@@ -145,15 +146,35 @@ curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.s
 可选变量：
 
 - `TARGET_DIR=/opt/UY-NB-Meter`
-- `BRANCH=main`
+- `RELEASE_TAG=v1.0.0`
+- `RELEASE_URL=https://github.com/.../UY-NB-Meter-release.tar.gz`
 - `RUN_TESTS=1`
 - `INSTALL_SERVICE=1`
 
 说明：
 
-- `install.sh` 负责 clone / pull 仓库
+- `install.sh` 只下载 Release 包并解压安装，不依赖 `git`
 - 实际部署逻辑仍在 `deploy/deploy_update.sh`
 - 首次执行会自动从 `.env.example` 生成 `.env`
+- 更新时会保留本地 `.env` 和 `.venv`
+
+发布 Release 包：
+
+```bash
+cd /home/yobai/UY-NB-Meter
+bash deploy/build_release.sh
+```
+
+然后把生成的 `UY-NB-Meter-release.tar.gz` 上传到 GitHub Release 资产中即可。
+
+如果使用仓库内的 GitHub Actions 工作流，也可以直接打 tag 自动发布：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+工作流会自动构建并上传同名资产 `UY-NB-Meter-release.tar.gz`，之后安装脚本可通过 `RELEASE_TAG=v1.0.0` 下载该版本。
 
 ## AES 请求示例
 

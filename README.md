@@ -90,6 +90,71 @@ python server.py
 - 首页：`http://127.0.0.1:15556/`
 - 上报接口：`http://127.0.0.1:15556/HMWSSBAPI/PostMeterReadingData`
 
+## 部署/更新脚本
+
+仓库内提供了 Ubuntu / systemd 场景的脚本：
+
+```bash
+cd /home/yobai/UY-NB-Meter
+cp .env.example .env
+bash deploy/deploy_update.sh install
+sudo bash deploy/deploy_update.sh install-service
+```
+
+后续更新：
+
+```bash
+cd /home/yobai/UY-NB-Meter
+bash deploy/deploy_update.sh update
+```
+
+常用命令：
+
+- `bash deploy/deploy_update.sh restart`
+- `bash deploy/deploy_update.sh status`
+- `bash deploy/deploy_update.sh logs`
+
+说明：
+
+- `install` 会创建 `.venv` 并安装 `requirements.txt`
+- `update` 会先执行 `git fetch/pull --ff-only`，再更新依赖并重启 `systemd` 服务
+- 若仓库存在未提交改动，`update` 会停止，避免覆盖本地修改
+- 服务模板文件是 `deploy/uy-nb-meter.service.template`
+- 环境变量建议写在项目根目录 `.env`
+
+## GitHub 一键执行
+
+如果脚本已经推到 GitHub，可以直接通过 Raw 地址执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | bash -s -- install
+```
+
+安装并自动注册 `systemd`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | INSTALL_SERVICE=1 bash -s -- install
+```
+
+更新现有部署：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | bash -s -- update
+```
+
+可选变量：
+
+- `TARGET_DIR=/opt/UY-NB-Meter`
+- `BRANCH=main`
+- `RUN_TESTS=1`
+- `INSTALL_SERVICE=1`
+
+说明：
+
+- `install.sh` 负责 clone / pull 仓库
+- 实际部署逻辑仍在 `deploy/deploy_update.sh`
+- 首次执行会自动从 `.env.example` 生成 `.env`
+
 ## AES 请求示例
 
 下面示例会构造一个合法请求。示例明文是 `AA` 重复 `158` 次，对应 `158` bytes 协议包。

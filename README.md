@@ -148,12 +148,14 @@ curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.s
 - `TARGET_DIR=/opt/UY-NB-Meter`
 - `RELEASE_TAG=v1.0.0`
 - `RELEASE_URL=https://github.com/.../UY-NB-Meter-release.tar.gz`
+- `SOURCE_REF=main`
 - `RUN_TESTS=1`
 - `INSTALL_SERVICE=1`
 
 说明：
 
 - `install.sh` 只下载 Release 包并解压安装，不依赖 `git`
+- 如果 `latest` 或指定 tag 下没有找到 Release 资产，会自动回退到 GitHub 源码 tarball
 - 实际部署逻辑仍在 `deploy/deploy_update.sh`
 - 首次执行会自动从 `.env.example` 生成 `.env`
 - 更新时会保留本地 `.env` 和 `.venv`

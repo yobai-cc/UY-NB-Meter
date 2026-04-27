@@ -8,6 +8,7 @@ TARGET_DIR="${TARGET_DIR:-$HOME/UY-NB-Meter}"
 RELEASE_TAG="${RELEASE_TAG:-latest}"
 RELEASE_FILE="${RELEASE_FILE:-UY-NB-Meter-release.tar.gz}"
 RELEASE_URL="${RELEASE_URL:-}"
+SOURCE_REF="${SOURCE_REF:-main}"
 RUN_TESTS="${RUN_TESTS:-0}"
 INSTALL_SERVICE="${INSTALL_SERVICE:-0}"
 ENV_TEMPLATE="${ENV_TEMPLATE:-.env.example}"
@@ -30,6 +31,7 @@ Environment overrides:
   RELEASE_TAG      Default: ${RELEASE_TAG}
   RELEASE_FILE     Default: ${RELEASE_FILE}
   RELEASE_URL      Optional direct download url
+  SOURCE_REF       Default: ${SOURCE_REF}
   RUN_TESTS        1 to run unittest
   INSTALL_SERVICE  1 to install/restart systemd service
 EOF
@@ -60,6 +62,15 @@ resolve_release_url() {
   fi
 
   printf 'https://github.com/%s/releases/download/%s/%s\n' "${REPO_SLUG}" "${RELEASE_TAG}" "${RELEASE_FILE}"
+}
+
+resolve_source_url() {
+  if [[ "${RELEASE_TAG}" == "latest" ]]; then
+    printf 'https://github.com/%s/archive/refs/heads/%s.tar.gz\n' "${REPO_SLUG}" "${SOURCE_REF}"
+    return
+  fi
+
+  printf 'https://github.com/%s/archive/refs/tags/%s.tar.gz\n' "${REPO_SLUG}" "${RELEASE_TAG}"
 }
 
 download_release() {
@@ -144,7 +155,7 @@ run_repo_script() {
 
 main() {
   local command="${1:-install}"
-  local work_dir archive_path extract_dir payload_dir release_url
+  local work_dir archive_path extract_dir payload_dir release_url source_url
 
   case "${command}" in
     install|update)
@@ -157,9 +168,16 @@ main() {
       archive_path="${work_dir}/${RELEASE_FILE}"
       extract_dir="${work_dir}/extract"
       release_url="$(resolve_release_url)"
+      source_url="$(resolve_source_url)"
 
       log "using release url: ${release_url}"
-      download_release "${release_url}" "${archive_path}"
+      if ! download_release "${release_url}" "${archive_path}"; then
+        if [[ -n "${RELEASE_URL}" ]]; then
+          die "failed to download RELEASE_URL=${RELEASE_URL}"
+        fi
+        log "release asset not available, falling back to source archive: ${source_url}"
+        curl -fL "${source_url}" -o "${archive_path}"
+      fi
       extract_release "${archive_path}" "${extract_dir}"
       payload_dir="$(resolve_payload_dir "${extract_dir}")"
       sync_payload "${payload_dir}"

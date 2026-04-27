@@ -270,7 +270,7 @@ class ServerTests(unittest.TestCase):
         self.assertIn('action="/aes-mode"', html)
         self.assertIn("AES-GCM Mode", html)
         self.assertIn(">Enabled<", html)
-        self.assertIn(">Plaintext<", html)
+        self.assertIn(">Disabled<", html)
 
     @mock.patch.dict(server.app.config, crypto_config(), clear=False)
     def test_toggle_aes_mode_changes_runtime_mode(self):

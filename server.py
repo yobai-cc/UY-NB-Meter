@@ -242,7 +242,7 @@ HTML_TEMPLATE = """
     <div class="header">
         <div>
             <h1>HMWSSB API Request Log</h1>
-            <div class="meta">Endpoint: /HMWSSBAPI/PostMeterReadingData | Request: AES-128-GCM decrypt | Response: AES-128-GCM encrypt | Accept rule: decoded hex payload length must equal 158 bytes</div>
+            <div class="meta">Endpoint: /HMWSSBAPI/PostMeterReadingData | Request: {{ 'AES-128-GCM decrypt' if key_info.aes_enabled else 'plaintext' }} | Response: {{ 'AES-128-GCM encrypt' if key_info.response_encrypt_enabled else 'plaintext' }} | Accept rule: decoded hex payload length must equal 158 bytes</div>
             <div class="version-badge">Version {{ version }}</div>
         </div>
         <div class="actions">
@@ -262,7 +262,7 @@ HTML_TEMPLATE = """
                 </form>
                 <form class="inline-form" action="/aes-mode" method="post">
                     <input type="hidden" name="enabled" value="false">
-                    <button class="toggle-btn {{ '' if key_info.aes_enabled else 'active' }}" type="submit">Plaintext</button>
+                    <button class="toggle-btn {{ '' if key_info.aes_enabled else 'active' }}" type="submit">Disabled</button>
                 </form>
             </div>
             <div class="panel-item">

@@ -159,6 +159,43 @@ curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.s
 - 实际部署逻辑仍在 `deploy/deploy_update.sh`
 - 首次执行会自动从 `.env.example` 生成 `.env`
 - 更新时会保留本地 `.env` 和 `.venv`
+- 如果服务器下载 PyPI 很慢，可在 `.env` 中配置大陆/海外双源回退
+
+中国大陆服务器示例：
+
+```bash
+cat >> .env <<'EOF'
+PIP_REGION=mainland
+PIP_MAINLAND_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+PIP_MAINLAND_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+PIP_OVERSEAS_INDEX_URL=https://pypi.org/simple
+PIP_OVERSEAS_TRUSTED_HOST=pypi.org files.pythonhosted.org
+PIP_TIMEOUT=120
+PIP_RETRIES=20
+PIP_RESUME_RETRIES=20
+EOF
+```
+
+海外服务器示例：
+
+```bash
+cat >> .env <<'EOF'
+PIP_REGION=overseas
+PIP_MAINLAND_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+PIP_MAINLAND_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+PIP_OVERSEAS_INDEX_URL=https://pypi.org/simple
+PIP_OVERSEAS_TRUSTED_HOST=pypi.org files.pythonhosted.org
+PIP_TIMEOUT=120
+PIP_RETRIES=20
+PIP_RESUME_RETRIES=20
+EOF
+```
+
+行为说明：
+
+- `PIP_REGION=mainland` 时，优先走清华镜像，失败后回退到官方 PyPI
+- `PIP_REGION=overseas` 时，优先走官方 PyPI，失败后回退到清华镜像
+- 如果显式设置了 `PIP_INDEX_URL`，则只使用该自定义源
 
 发布 Release 包：
 

@@ -13,6 +13,17 @@ ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
 BRANCH="${BRANCH:-}"
 RUN_TESTS="${RUN_TESTS:-0}"
 SKIP_GIT_PULL="${SKIP_GIT_PULL:-0}"
+PIP_INDEX_URL="${PIP_INDEX_URL:-}"
+PIP_EXTRA_INDEX_URL="${PIP_EXTRA_INDEX_URL:-}"
+PIP_TRUSTED_HOST="${PIP_TRUSTED_HOST:-}"
+PIP_REGION="${PIP_REGION:-overseas}"
+PIP_MAINLAND_INDEX_URL="${PIP_MAINLAND_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
+PIP_MAINLAND_TRUSTED_HOST="${PIP_MAINLAND_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}"
+PIP_OVERSEAS_INDEX_URL="${PIP_OVERSEAS_INDEX_URL:-https://pypi.org/simple}"
+PIP_OVERSEAS_TRUSTED_HOST="${PIP_OVERSEAS_TRUSTED_HOST:-pypi.org files.pythonhosted.org}"
+PIP_TIMEOUT="${PIP_TIMEOUT:-120}"
+PIP_RETRIES="${PIP_RETRIES:-20}"
+PIP_RESUME_RETRIES="${PIP_RESUME_RETRIES:-20}"
 SUDO_BIN="${SUDO_BIN:-sudo}"
 SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-systemctl}"
 JOURNALCTL_BIN="${JOURNALCTL_BIN:-journalctl}"
@@ -37,6 +48,17 @@ Environment overrides:
   BRANCH                  Optional git branch to pull
   RUN_TESTS               1 to run unittest after install/update
   SKIP_GIT_PULL           1 to skip git pull during update
+  PIP_INDEX_URL           Optional pip mirror, e.g. https://pypi.tuna.tsinghua.edu.cn/simple
+  PIP_EXTRA_INDEX_URL     Optional extra pip index
+  PIP_TRUSTED_HOST        Optional trusted host for pip
+  PIP_REGION              mainland or overseas. Default: ${PIP_REGION}
+  PIP_MAINLAND_INDEX_URL  Default: ${PIP_MAINLAND_INDEX_URL}
+  PIP_MAINLAND_TRUSTED_HOST Default: ${PIP_MAINLAND_TRUSTED_HOST}
+  PIP_OVERSEAS_INDEX_URL  Default: ${PIP_OVERSEAS_INDEX_URL}
+  PIP_OVERSEAS_TRUSTED_HOST Default: ${PIP_OVERSEAS_TRUSTED_HOST}
+  PIP_TIMEOUT             Default: ${PIP_TIMEOUT}
+  PIP_RETRIES             Default: ${PIP_RETRIES}
+  PIP_RESUME_RETRIES      Default: ${PIP_RESUME_RETRIES}
   SUDO_BIN                Default: ${SUDO_BIN}
   SYSTEMCTL_BIN           Default: ${SYSTEMCTL_BIN}
   JOURNALCTL_BIN          Default: ${JOURNALCTL_BIN}
@@ -50,6 +72,35 @@ log() {
 die() {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
+}
+
+run_pip_install() {
+  local index_url="$1"
+  local trusted_hosts="$2"
+  shift 2
+
+  local pip_args=(
+    --timeout "${PIP_TIMEOUT}"
+    --retries "${PIP_RETRIES}"
+    --resume-retries "${PIP_RESUME_RETRIES}"
+  )
+  local host
+
+  if [[ -n "${index_url}" ]]; then
+    pip_args+=(--index-url "${index_url}")
+  fi
+  if [[ -n "${PIP_EXTRA_INDEX_URL}" ]]; then
+    pip_args+=(--extra-index-url "${PIP_EXTRA_INDEX_URL}")
+  fi
+  if [[ -n "${PIP_TRUSTED_HOST}" ]]; then
+    pip_args+=(--trusted-host "${PIP_TRUSTED_HOST}")
+  elif [[ -n "${trusted_hosts}" ]]; then
+    for host in ${trusted_hosts}; do
+      pip_args+=(--trusted-host "${host}")
+    done
+  fi
+
+  "${VENV_DIR}/bin/python" -m pip install "${pip_args[@]}" "$@"
 }
 
 load_env() {
@@ -75,11 +126,46 @@ ensure_venv() {
 }
 
 install_requirements() {
+  local primary_index primary_hosts secondary_index secondary_hosts
+
   require_file "${APP_DIR}/requirements.txt"
-  log "upgrading pip"
-  "${VENV_DIR}/bin/python" -m pip install --upgrade pip
-  log "installing dependencies"
-  "${VENV_DIR}/bin/python" -m pip install -r "${APP_DIR}/requirements.txt"
+
+  if [[ -n "${PIP_INDEX_URL}" ]]; then
+    primary_index="${PIP_INDEX_URL}"
+    primary_hosts="${PIP_TRUSTED_HOST}"
+    secondary_index=""
+    secondary_hosts=""
+  elif [[ "${PIP_REGION}" == "mainland" ]]; then
+    primary_index="${PIP_MAINLAND_INDEX_URL}"
+    primary_hosts="${PIP_MAINLAND_TRUSTED_HOST}"
+    secondary_index="${PIP_OVERSEAS_INDEX_URL}"
+    secondary_hosts="${PIP_OVERSEAS_TRUSTED_HOST}"
+  else
+    primary_index="${PIP_OVERSEAS_INDEX_URL}"
+    primary_hosts="${PIP_OVERSEAS_TRUSTED_HOST}"
+    secondary_index="${PIP_MAINLAND_INDEX_URL}"
+    secondary_hosts="${PIP_MAINLAND_TRUSTED_HOST}"
+  fi
+
+  log "upgrading pip with primary index: ${primary_index:-default}"
+  if ! run_pip_install "${primary_index}" "${primary_hosts}" --upgrade pip; then
+    if [[ -n "${secondary_index}" ]]; then
+      log "primary pip index failed, retrying with fallback index: ${secondary_index}"
+      run_pip_install "${secondary_index}" "${secondary_hosts}" --upgrade pip
+    else
+      return 1
+    fi
+  fi
+
+  log "installing dependencies with primary index: ${primary_index:-default}"
+  if ! run_pip_install "${primary_index}" "${primary_hosts}" -r "${APP_DIR}/requirements.txt"; then
+    if [[ -n "${secondary_index}" ]]; then
+      log "primary pip index failed, retrying dependencies with fallback index: ${secondary_index}"
+      run_pip_install "${secondary_index}" "${secondary_hosts}" -r "${APP_DIR}/requirements.txt"
+    else
+      return 1
+    fi
+  fi
 }
 
 git_update() {

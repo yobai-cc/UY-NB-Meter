@@ -256,6 +256,14 @@ HTML_TEMPLATE = """
             <div class="panel-item">
                 <span class="panel-label">AES-GCM Mode</span>
                 <span class="panel-value">{{ 'Enabled' if key_info.aes_enabled else 'Disabled (plaintext mode)' }}</span>
+                <form class="inline-form" action="/aes-mode" method="post">
+                    <input type="hidden" name="enabled" value="true">
+                    <button class="toggle-btn {{ 'active' if key_info.aes_enabled else '' }}" type="submit">Enabled</button>
+                </form>
+                <form class="inline-form" action="/aes-mode" method="post">
+                    <input type="hidden" name="enabled" value="false">
+                    <button class="toggle-btn {{ '' if key_info.aes_enabled else 'active' }}" type="submit">Plaintext</button>
+                </form>
             </div>
             <div class="panel-item">
                 <span class="panel-label">Response Format</span>
@@ -462,6 +470,15 @@ def key_api_auth_error():
     return jsonify({"error": "Authorization header is not in VALID_AUTH_KEYS"}), 401
 
 
+def request_enabled_value():
+    enabled_value = (request.form.get("enabled") or "").strip().lower()
+    if enabled_value in {"1", "true", "yes", "on"}:
+        return True
+    if enabled_value in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError("enabled must be true/false")
+
+
 @app.route('/')
 def index():
     display_data = sorted(HISTORY_DATA, key=lambda item: item["Pkey"], reverse=True)
@@ -514,19 +531,30 @@ def activate_key():
     return jsonify(record)
 
 
+@app.route('/aes-mode', methods=['POST'])
+def set_aes_mode():
+    auth_error = key_api_auth_error()
+    if auth_error:
+        return auth_error
+
+    try:
+        app.config["AES_GCM_ENABLED"] = request_enabled_value()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return redirect(url_for('index'))
+
+
 @app.route('/response-encryption', methods=['POST'])
 def set_response_encryption():
     auth_error = key_api_auth_error()
     if auth_error:
         return auth_error
 
-    enabled_value = (request.form.get("enabled") or "").strip().lower()
-    if enabled_value in {"1", "true", "yes", "on"}:
-        app.config["AES_GCM_ENCRYPT_RESPONSE"] = True
-    elif enabled_value in {"0", "false", "no", "off"}:
-        app.config["AES_GCM_ENCRYPT_RESPONSE"] = False
-    else:
-        return jsonify({"error": "enabled must be true/false"}), 400
+    try:
+        app.config["AES_GCM_ENCRYPT_RESPONSE"] = request_enabled_value()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     return redirect(url_for('index'))
 

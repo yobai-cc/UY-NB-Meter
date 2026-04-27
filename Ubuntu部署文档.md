@@ -105,12 +105,14 @@ pip install -r requirements.txt
 
 ```ini
 Environment=AES_GCM_ENABLED=true
+Environment=AES_GCM_ENCRYPT_RESPONSE=true
 Environment=AES_GCM_KEY=hex:b8286d10dc8ae670189223a299b0affb
 Environment=AES_GCM_RESPONSE_KEY=hex:45e036e26c95279ee61c8f452ee35543
 ```
 
 可选环境变量：
 
+- `AES_GCM_ENCRYPT_RESPONSE`
 - `AES_GCM_REQUEST_AAD`
 - `AES_GCM_RESPONSE_AAD`
 - `AES_GCM_KEY_STORE_PATH`
@@ -122,6 +124,7 @@ Environment=AES_GCM_RESPONSE_KEY=hex:45e036e26c95279ee61c8f452ee35543
 cd /opt/UY-NB-Meter
 source venv/bin/activate
 export AES_GCM_ENABLED=true
+export AES_GCM_ENCRYPT_RESPONSE=true
 python server.py
 ```
 
@@ -157,6 +160,7 @@ Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
 Environment=AES_GCM_ENABLED=true
+Environment=AES_GCM_ENCRYPT_RESPONSE=true
 Environment=AES_GCM_KEY=hex:b8286d10dc8ae670189223a299b0affb
 Environment=AES_GCM_RESPONSE_KEY=hex:45e036e26c95279ee61c8f452ee35543
 
@@ -279,7 +283,7 @@ curl -i -X POST "http://hmwssbapi.bovetech.cn:15000/HMWSSBAPI/PostMeterReadingDa
 
 说明：
 
-- 当前响应也会被 AES-GCM 加密
+- 当 `AES_GCM_ENCRYPT_RESPONSE=true` 时，当前响应会被 AES-GCM 加密
 - 所以不会直接返回明文 `OK`
 
 ## 13. 更新部署流程

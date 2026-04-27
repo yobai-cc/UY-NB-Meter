@@ -249,6 +249,44 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 401)
                 self.assertEqual(response.get_json()["error"], "Authorization header is not in VALID_AUTH_KEYS")
 
+    @mock.patch.dict(server.app.config, crypto_config(), clear=False)
+    def test_index_shows_response_encryption_toggle_buttons(self):
+        client = build_client()
+
+        response = client.get("/")
+        html = response.get_data(as_text=True)
+
+        self.assertIn('action="/response-encryption"', html)
+        self.assertIn('name="enabled" value="true"', html)
+        self.assertIn('name="enabled" value="false"', html)
+
+    @mock.patch.dict(server.app.config, crypto_config(), clear=False)
+    def test_toggle_response_encryption_changes_runtime_mode(self):
+        client = build_client()
+        self.assertTrue(server.app.config["AES_GCM_ENCRYPT_RESPONSE"])
+
+        response = client.post(
+            "/response-encryption",
+            data={"enabled": "false"},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(server.app.config["AES_GCM_ENCRYPT_RESPONSE"])
+        self.assertIn("Plaintext", response.get_data(as_text=True))
+
+    @mock.patch.dict(server.app.config, crypto_config(), clear=False)
+    def test_toggle_response_encryption_rejects_invalid_value(self):
+        client = build_client()
+
+        response = client.post(
+            "/response-encryption",
+            data={"enabled": "abc"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["error"], "enabled must be true/false")
+
 
 if __name__ == "__main__":
     unittest.main()

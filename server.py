@@ -206,6 +206,21 @@ HTML_TEMPLATE = """
         .panel-item { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; }
         .panel-label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
         .panel-value { font-family: Consolas, Monaco, monospace; font-size: 13px; word-break: break-all; }
+        .inline-form { display: inline-block; margin-right: 8px; margin-top: 6px; }
+        .toggle-btn {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+            color: #111827;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .toggle-btn.active {
+            background: #111827;
+            color: #fff;
+            border-color: #111827;
+        }
         .guide { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
         .guide-block { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; }
         .guide-block h3 { margin: 0 0 8px; font-size: 14px; }
@@ -245,6 +260,14 @@ HTML_TEMPLATE = """
             <div class="panel-item">
                 <span class="panel-label">Response Format</span>
                 <span class="panel-value">{{ 'Encrypted base64' if key_info.response_encrypt_enabled else 'Plaintext' }}</span>
+                <form class="inline-form" action="/response-encryption" method="post">
+                    <input type="hidden" name="enabled" value="true">
+                    <button class="toggle-btn {{ 'active' if key_info.response_encrypt_enabled else '' }}" type="submit">Encrypted</button>
+                </form>
+                <form class="inline-form" action="/response-encryption" method="post">
+                    <input type="hidden" name="enabled" value="false">
+                    <button class="toggle-btn {{ '' if key_info.response_encrypt_enabled else 'active' }}" type="submit">Plaintext</button>
+                </form>
             </div>
             <div class="panel-item">
                 <span class="panel-label">Active Key</span>
@@ -489,6 +512,23 @@ def activate_key():
         return jsonify({"error": "key not found", "name": name}), 404
 
     return jsonify(record)
+
+
+@app.route('/response-encryption', methods=['POST'])
+def set_response_encryption():
+    auth_error = key_api_auth_error()
+    if auth_error:
+        return auth_error
+
+    enabled_value = (request.form.get("enabled") or "").strip().lower()
+    if enabled_value in {"1", "true", "yes", "on"}:
+        app.config["AES_GCM_ENCRYPT_RESPONSE"] = True
+    elif enabled_value in {"0", "false", "no", "off"}:
+        app.config["AES_GCM_ENCRYPT_RESPONSE"] = False
+    else:
+        return jsonify({"error": "enabled must be true/false"}), 400
+
+    return redirect(url_for('index'))
 
 
 @app.route('/HMWSSBAPI/PostMeterReadingData', methods=['POST'])

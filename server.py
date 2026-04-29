@@ -593,6 +593,40 @@ def set_response_encryption():
     return redirect(url_for('index'))
 
 
+@app.route('/response-format', methods=['POST'])
+def set_response_format():
+    auth_error = key_api_auth_error()
+    if auth_error:
+        return auth_error
+
+    fmt = (request.form.get("format") or "plaintext").strip().lower()
+    if fmt not in ("plaintext", "json"):
+        return jsonify({"error": "format must be plaintext or json"}), 400
+
+    app.config["RESPONSE_FORMAT"] = fmt
+    return redirect(url_for('index'))
+
+
+@app.route('/downlink', methods=['POST'])
+def set_downlink():
+    auth_error = key_api_auth_error()
+    if auth_error:
+        return auth_error
+
+    downlink = (request.form.get("hex") or "").strip()
+    # 轻量校验：只接受 hex 字符和空格
+    cleaned = "".join(downlink.split())
+    if cleaned and not all(c in "0123456789abcdefABCDEF" for c in cleaned):
+        return jsonify({"error": "Downlink data must be hex characters only"}), 400
+
+    # 长度限制：防止内存溢出或设备缓冲区溢出
+    if len(cleaned) > 1024:
+        return jsonify({"error": "Downlink data too long (max 1024 hex chars)"}), 400
+
+    app.config["DOWNLINK_HEX"] = downlink
+    return redirect(url_for('index'))
+
+
 @app.route('/HMWSSBAPI/PostMeterReadingData', methods=['POST'])
 def post_reading():
     raw_bytes = request.get_data(cache=True)

@@ -453,15 +453,34 @@ def plain_text_response(body, status_code):
     return response
 
 
-def response_text(plain_text, status_code):
+def response_text(plain_text, status_code, response_type="", description=""):
+    if app.config.get("RESPONSE_FORMAT") != "json":
+        # --- 原有 plaintext 逻辑不变 ---
+        if not encrypt_response_enabled():
+            return plain_text_response(plain_text, status_code)
+
+        try:
+            encrypted_body = encrypt_response_body(plain_text)
+        except Exception:
+            return plain_text_response(plain_text, status_code)
+        response = make_response(encrypted_body, status_code)
+        response.mimetype = "text/plain"
+        return response
+
+    # --- JSON 模式：统一 HTTP 200，真实状态码在 ResponseCode ---
+    json_body = build_json_response(status_code, response_type, description)
     if not encrypt_response_enabled():
-        return plain_text_response(plain_text, status_code)
+        response = make_response(json_body, 200)
+        response.mimetype = "application/json"
+        return response
 
     try:
-        encrypted_body = encrypt_response_body(plain_text)
+        encrypted_body = encrypt_response_body(json_body)
     except Exception:
-        return plain_text_response(plain_text, status_code)
-    response = make_response(encrypted_body, status_code)
+        response = make_response(json_body, 200)
+        response.mimetype = "application/json"
+        return response
+    response = make_response(encrypted_body, 200)
     response.mimetype = "text/plain"
     return response
 

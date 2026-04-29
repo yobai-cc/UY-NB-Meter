@@ -156,6 +156,8 @@ def get_key_management_info():
         "response_key_source": key_source("response"),
         "expected_body_length": EXPECTED_BODY_LENGTH,
         "valid_auth_keys": VALID_AUTH_KEYS,
+        "response_format": app.config.get("RESPONSE_FORMAT", "plaintext"),
+        "downlink_hex": app.config.get("DOWNLINK_HEX", ""),
     }
 
 
@@ -303,6 +305,25 @@ HTML_TEMPLATE = """
             <div class="panel-item">
                 <span class="panel-label">Response AES-128 Key</span>
                 <span class="panel-value">{{ key_info.response_key_hex }} ({{ key_info.response_key_source }})</span>
+            </div>
+            <div class="panel-item">
+                <span class="panel-label">Response Format</span>
+                <span class="panel-value">{{ key_info.response_format | e }}</span>
+                <form class="inline-form" action="/response-format" method="post">
+                    <input type="hidden" name="format" value="json">
+                    <button class="toggle-btn {{ 'active' if key_info.response_format == 'json' else '' }}" type="submit">JSON</button>
+                </form>
+                <form class="inline-form" action="/response-format" method="post">
+                    <input type="hidden" name="format" value="plaintext">
+                    <button class="toggle-btn {{ 'active' if key_info.response_format == 'plaintext' else '' }}" type="submit">Plaintext</button>
+                </form>
+            </div>
+            <div class="panel-item">
+                <span class="panel-label">Downlink Hex (JSON mode)</span>
+                <form action="/downlink" method="post">
+                    <input type="text" name="hex" value="{{ key_info.downlink_hex | e }}" style="width:100%;font-family:Consolas,Monaco,monospace;font-size:12px;padding:4px;">
+                    <button type="submit" style="margin-top:6px;font-size:12px;">Update</button>
+                </form>
             </div>
         </div>
     </div>

@@ -6,6 +6,7 @@ import os
 
 app = Flask(__name__)
 
+# 请求历史仅存于内存，服务重启后丢失；不引入持久化存储，保持单文件架构。
 HISTORY_DATA = []
 MAX_HISTORY = 50
 
@@ -20,6 +21,8 @@ DEFAULT_AES_GCM_KEY_HEX = "b8286d10dc8ae670189223a299b0affb"
 DEFAULT_AES_GCM_RESPONSE_KEY_HEX = "45e036e26c95279ee61c8f452ee35543"
 DEFAULT_AES_GCM_KEY = bytes.fromhex(DEFAULT_AES_GCM_KEY_HEX)
 DEFAULT_AES_GCM_RESPONSE_KEY = bytes.fromhex(DEFAULT_AES_GCM_RESPONSE_KEY_HEX)
+# 下行 hex 按联调习惯带空格存储，方便人在首页阅读和修改；
+# 校验时会自动删除空白符再解析，不影响协议字节比对。
 DEFAULT_DOWNLINK_HEX = "FE FE 68 10 AA AA AA AA AA AA AA 25 04 30 05 00 00 7C 16"
 
 
@@ -54,6 +57,8 @@ app.config.setdefault("AES_GCM_REQUEST_AAD", load_bytes_env("AES_GCM_REQUEST_AAD
 app.config.setdefault("AES_GCM_RESPONSE_AAD", load_bytes_env("AES_GCM_RESPONSE_AAD"))
 app.config.setdefault("AES_GCM_KEY_STORE_PATH", os.getenv("AES_GCM_KEY_STORE_PATH"))
 app.config.setdefault("AES_GCM_ACTIVE_KEY_NAME", os.getenv("AES_GCM_ACTIVE_KEY_NAME", "default"))
+# RESPONSE_FORMAT 和 DOWNLINK_HEX 是运行时动态配置，仅存于内存；
+# 首页按钮和环境变量可修改，但进程重启后不会自动回写 .env，因此重启会丢失手动修改的值。
 app.config.setdefault("RESPONSE_FORMAT", os.getenv("RESPONSE_FORMAT", "plaintext"))
 app.config.setdefault("DOWNLINK_HEX", os.getenv("DOWNLINK_HEX", DEFAULT_DOWNLINK_HEX))
 
@@ -191,6 +196,8 @@ def encrypt_response_body(plain_text):
     )
     return base64.b64encode(nonce + payload).decode("ascii")
 
+# 首页 HTML 内嵌在 Python 字符串中（单文件架构要求），不引入模板目录。
+# 改动首页 UI 时直接修改此字符串，重启服务生效。
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -487,6 +494,8 @@ def response_text(plain_text, status_code, response_type="", description=""):
         try:
             encrypted_body = encrypt_response_body(plain_text)
         except Exception:
+            # 响应加密失败时静默回退到明文，避免因加密异常导致请求完全无响应。
+            # 日志首页会显示 "Encrypt Failed" 错误信息，无需在此打印 traceback。
             return plain_text_response(plain_text, status_code)
         response = make_response(encrypted_body, status_code)
         response.mimetype = "text/plain"
@@ -502,6 +511,7 @@ def response_text(plain_text, status_code, response_type="", description=""):
     try:
         encrypted_body = encrypt_response_body(json_body)
     except Exception:
+        # JSON 模式下加密失败同样静默回退到明文 JSON，保证请求有响应。
         response = make_response(json_body, 200)
         response.mimetype = "application/json"
         return response
@@ -758,6 +768,8 @@ def post_reading():
         )
         return response_text("faile", 400, error_type or "Protocol Length Failed", "")
 
+    # "Sucess" 非拼写错误，是下游设备固件的固定协议字段名（单 s），
+    # 修改会导致设备解析失败，请勿 "纠正" 为 "Success"。
     resp_preview = build_json_response(200, "Sucess", downlink_hex) if app.config.get("RESPONSE_FORMAT") == "json" else "OK"
     record_entry(
         success=True,

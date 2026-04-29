@@ -1,6 +1,6 @@
 # UY-NB-Meter
 
-一个基于 Flask 的单文件模拟水表 API 服务器，供产品开发、接口联调和测试验收使用。当前版本支持 AES-128-GCM 请求解密与响应加密，同时保留宽松鉴权规则和首页日志页面。
+一个基于 Flask 的单文件模拟水表 API 服务器，供产品开发、接口联调和测试验收使用。当前版本支持 AES-128-GCM 请求解密与响应加密、JSON 响应格式、下行 hex 数据动态配置，同时保留宽松鉴权规则和首页日志页面。
 
 ## 当前行为
 
@@ -10,6 +10,8 @@
 - Key 管理接口：
   - `POST /keys/generate`
   - `POST /keys/activate`
+  - `POST /response-format`
+  - `POST /downlink`
 - 鉴权规则：
   - 未提供 `Authorization` 请求头：放行
   - 提供了 `Authorization` 且值在 `VALID_AUTH_KEYS` 中：放行
@@ -20,6 +22,7 @@
 
 是否启用 AES 由 `AES_GCM_ENABLED` 控制。
 响应是否加密由 `AES_GCM_ENCRYPT_RESPONSE` 控制。
+响应格式由 `RESPONSE_FORMAT` 控制（`plaintext` / `json`）。
 
 - 当 `AES_GCM_ENABLED=false` 时：
   - 请求体按明文处理
@@ -32,6 +35,21 @@
   - 十六进制文本解码后长度必须正好等于 `158` bytes
   - 当 `AES_GCM_ENCRYPT_RESPONSE=true` 时，响应会加密后返回
   - 当 `AES_GCM_ENCRYPT_RESPONSE=false` 时，响应会直接返回明文 `OK` 或 `faile`
+
+JSON 响应格式（`RESPONSE_FORMAT=json`）：
+
+- 所有响应返回统一 JSON 结构 `{"m_Item1": {"ResponseCode":"200","ResponseType":"Sucess","Description":"..."}}`
+- HTTP 始终返回 200，真实状态码在 ResponseCode 字段
+- `"Sucess"`（单 s）是固件协议固定字段名，请勿修改
+- 成功时 Description 为当前下行 hex，失败时为错误类型名
+- JSON + 加密模式：整个 JSON 作为 AES-GCM 明文加密
+
+下行 hex 数据：
+
+- 成功响应携带下行 hex（JSON 在 Description 字段中）
+- 默认值 `FE FE 68 10 AA AA AA AA AA AA AA 25 04 30 05 00 00 7C 16`
+- 支持带空格格式，首页可直接编辑
+- 环境变量 `DOWNLINK_HEX` 可覆盖默认值
 
 固定测试 key：
 
@@ -46,27 +64,38 @@
 
 ## 首页按钮使用
 
-首页 `Key Management` 面板中有两个运行时按钮组：
+首页 `Key Management` 面板中有四个运行时按钮组：
 
 - `AES-GCM Mode`
+- `Response Encryption`
 - `Response Format`
+- `Downlink Hex`
 
 `AES-GCM Mode` 的作用：
 
 - `Enabled`：请求体按 AES-128-GCM 密文处理，服务端会先做 base64 解码和 AES 解密
 - `Disabled`：请求体按明文 hex 文本处理，便于直接用 Postman 或 curl 发送 `AA...` 这类测试数据
 
-`Response Format` 的作用：
+`Response Encryption` 的作用：
 
 - `Encrypted`：响应体返回 AES-GCM 加密后的 base64
 - `Plaintext`：响应体直接返回明文 `OK` 或 `faile`
 
+`Response Format` 的作用：
+
+- `JSON`：响应体返回 JSON 结构 `{"m_Item1": {...}}`，HTTP 始终 200，状态码在 ResponseCode
+- `Plaintext`：响应体直接返回 `OK` / `faile`
+
+`Downlink Hex` 的作用：
+
+- 输入框填写成功后响应携带的下行 hex 数据（支持带空格），提交即更新
+
 常见使用场景：
 
-- 联调真实设备协议：`AES-GCM Mode = Enabled`，`Response Format = Encrypted`
-- 排查请求解密问题：`AES-GCM Mode = Enabled`，`Response Format = Plaintext`
-- 手工构造明文请求体测试长度和 hex 校验：`AES-GCM Mode = Disabled`，`Response Format = Plaintext`
-- 只验证响应加密格式：`AES-GCM Mode = Disabled`，`Response Format = Encrypted`
+- 联调真实设备协议：`AES-GCM Mode = Enabled`，`Response Encryption = Encrypted`，`Response Format = JSON`
+- 排查请求解密问题：`AES-GCM Mode = Enabled`，`Response Encryption = Plaintext`，`Response Format = Plaintext`
+- 手工构造明文请求体测试长度和 hex 校验：`AES-GCM Mode = Disabled`，`Response Encryption = Plaintext`，`Response Format = Plaintext`
+- 只验证 JSON 响应加密格式：`AES-GCM Mode = Disabled`，`Response Encryption = Encrypted`，`Response Format = JSON`
 
 页面操作说明：
 
@@ -301,6 +330,9 @@ curl -i "http://127.0.0.1:15556/HMWSSBAPI/PostMeterReadingData" \
 首页会展示：
 
 - 当前 AES 模式是否启用
+- 当前是否加密响应
+- 当前响应格式（plaintext / json）
+- 当前下行 hex 数据
 - 当前请求 key、响应 key、key 来源
 - 鉴权规则与失败原因说明
 - 最近最多 50 条请求历史
@@ -319,6 +351,7 @@ curl -i "http://127.0.0.1:15556/HMWSSBAPI/PostMeterReadingData" \
 - `Response Crypto`
 - `Decode Status`
 - `Error`
+- `Response Data`
 - `Raw Data`
 
 ## 测试与验证

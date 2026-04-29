@@ -97,7 +97,7 @@ download_release() {
   local archive_path="$2"
 
   log "downloading release package"
-  curl -fL "${url}" -o "${archive_path}"
+  curl -fL --connect-timeout 10 --max-time 120 "${url}" -o "${archive_path}"
 }
 
 extract_release() {
@@ -220,7 +220,7 @@ main() {
           die "failed to download RELEASE_URL=${RELEASE_URL}"
         fi
         log "release asset not available, falling back to source archive: ${source_url}"
-        curl -fL "${source_url}" -o "${archive_path}"
+        curl -fL --connect-timeout 10 --max-time 120 "${source_url}" -o "${archive_path}"
       fi
       extract_release "${archive_path}" "${extract_dir}"
       payload_dir="$(resolve_payload_dir "${extract_dir}")"

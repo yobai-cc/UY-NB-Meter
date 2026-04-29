@@ -214,6 +214,7 @@ curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.s
 说明：
 
 - `install.sh` 只下载 Release 包并解压安装，不依赖 `git`
+- 下载阶段 `curl` 已内置超时保护（建连 10s / 传输 120s），大陆网络不佳时不会无限卡死
 - 如果 `latest` 或指定 tag 下没有找到 Release 资产，会自动回退到 GitHub 源码 tarball
 - 如果 `TARGET_DIR` 指向 `/opt/...` 这类受限目录，脚本会自动尝试用 `sudo` 创建目录并把目录所有权交给当前用户
 - 实际部署逻辑仍在 `deploy/deploy_update.sh`
@@ -263,7 +264,13 @@ EOF
 中国大陆服务器，安装到 `/opt/UY-NB-Meter` 并注册服务：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | TARGET_DIR=/opt/UY-NB-Meter PIP_REGION=mainland INSTALL_SERVICE=1 bash -s -- install
+curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | TARGET_DIR=/opt/UY-NB-Meter RELEASE_TAG=v2026.04.29 PIP_REGION=mainland PIP_TIMEOUT=20 PIP_RETRIES=2 PIP_RESUME_RETRIES=2 INSTALL_SERVICE=1 bash -s -- install
+```
+
+更新现有部署（指定版本，大陆加速）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yobai-cc/UY-NB-Meter/main/install.sh | TARGET_DIR=/opt/UY-NB-Meter RELEASE_TAG=v2026.04.29 PIP_REGION=mainland PIP_TIMEOUT=20 PIP_RETRIES=2 PIP_RESUME_RETRIES=2 bash -s -- update
 ```
 
 海外服务器，安装到 `/opt/UY-NB-Meter` 并注册服务：

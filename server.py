@@ -598,6 +598,7 @@ def post_reading():
     raw_bytes = request.get_data(cache=True)
     raw_text = raw_bytes.decode("utf-8", errors="replace")
     raw_body_text_length = len(raw_bytes)
+    downlink_hex = app.config.get("DOWNLINK_HEX", "")
 
     request_crypto_status = "Plaintext"
     response_crypto_status = "Encrypted" if encrypt_response_enabled() else "Plaintext"
@@ -668,7 +669,7 @@ def post_reading():
             error_type="Auth Failed",
             error_msg="Authorization header is not in VALID_AUTH_KEYS",
         )
-        return response_text("faile", 401)
+        return response_text("faile", 401, "Auth Failed", "")
 
     if not length_passed:
         if not error_type:
@@ -692,7 +693,7 @@ def post_reading():
             error_type=error_type,
             error_msg=error_msg,
         )
-        return response_text("faile", 400)
+        return response_text("faile", 400, error_type or "Protocol Length Failed", "")
 
     record_entry(
         success=True,
@@ -709,7 +710,7 @@ def post_reading():
         response_crypto_status=response_crypto_status,
         hex_decode_status=hex_decode_status,
     )
-    return response_text("OK", 200)
+    return response_text("OK", 200, "Sucess", downlink_hex)
 
 
 if __name__ == '__main__':

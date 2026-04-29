@@ -345,6 +345,186 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json()["error"], "enabled must be true/false")
 
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": False,
+        "AES_GCM_ENCRYPT_RESPONSE": False,
+        "RESPONSE_FORMAT": "json",
+        "DOWNLINK_HEX": "FE FE 68 10",
+    }, clear=False)
+    def test_json_response_format_on_success(self):
+        client = build_client()
+        hex_body = "AA" * 158
+
+        response = client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data=hex_body,
+            content_type="text/plain",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "application/json")
+        payload = response.get_json()
+        self.assertEqual(payload["m_Item1"]["ResponseCode"], "200")
+        self.assertEqual(payload["m_Item1"]["ResponseType"], "Sucess")
+        self.assertEqual(payload["m_Item1"]["Description"], "FE FE 68 10")
+
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": False,
+        "AES_GCM_ENCRYPT_RESPONSE": False,
+        "RESPONSE_FORMAT": "json",
+    }, clear=False)
+    def test_json_response_format_on_failure(self):
+        client = build_client()
+
+        response = client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data="ZZ" * 158,
+            content_type="text/plain",
+        )
+
+        # JSON 模式统一返回 HTTP 200，真实状态码在 ResponseCode
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["m_Item1"]["ResponseCode"], "400")
+        self.assertEqual(payload["m_Item1"]["ResponseType"], "Not Hex Text")
+
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": False,
+        "AES_GCM_ENCRYPT_RESPONSE": False,
+        "RESPONSE_FORMAT": "plaintext",
+    }, clear=False)
+    def test_plaintext_response_unchanged_default(self):
+        client = build_client()
+        hex_body = "AA" * 158
+
+        response = client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data=hex_body,
+            content_type="text/plain",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "text/plain")
+        self.assertEqual(response.get_data(as_text=True), "OK")
+
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": False,
+        "AES_GCM_ENCRYPT_RESPONSE": False,
+        "RESPONSE_FORMAT": "json",
+        "DOWNLINK_HEX": "",
+    }, clear=False)
+    def test_json_response_with_empty_downlink(self):
+        client = build_client()
+        hex_body = "AA" * 158
+
+        response = client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data=hex_body,
+            content_type="text/plain",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["m_Item1"]["Description"], "")
+
+    def test_downlink_route_rejects_non_hex(self):
+        client = build_client()
+        response = client.post(
+            "/downlink",
+            data={"hex": "not hex!!!"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["error"], "Downlink data must be hex characters only")
+
+    def test_response_format_route_rejects_invalid_value(self):
+        client = build_client()
+        response = client.post(
+            "/response-format",
+            data={"format": "xml"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["error"], "format must be plaintext or json")
+
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": False,
+        "AES_GCM_ENCRYPT_RESPONSE": False,
+        "RESPONSE_FORMAT": "json",
+    }, clear=False)
+    def test_json_response_on_auth_failure(self):
+        client = build_client()
+
+        response = client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data="AA" * 158,
+            content_type="text/plain",
+            headers={"Authorization": "Basic invalid"},
+        )
+
+        # JSON 模式统一 HTTP 200
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["m_Item1"]["ResponseCode"], "401")
+        self.assertEqual(payload["m_Item1"]["ResponseType"], "Auth Failed")
+
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": False,
+        "AES_GCM_ENCRYPT_RESPONSE": True,
+        "AES_GCM_KEY": DEFAULT_TEST_KEY,
+        "AES_GCM_RESPONSE_KEY": DEFAULT_TEST_KEY,
+        "RESPONSE_FORMAT": "json",
+        "DOWNLINK_HEX": "AABB",
+    }, clear=False)
+    def test_json_response_encrypted_with_aes_gcm(self):
+        client = build_client()
+        hex_body = "AA" * 158
+
+        response = client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data=hex_body,
+            content_type="text/plain",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # AES-GCM 加密后 mimetype 为 text/plain
+        self.assertEqual(response.mimetype, "text/plain")
+        # 解密后验证 JSON 结构
+        decrypted = decrypt_response(response.get_data(as_text=True))
+        payload = json.loads(decrypted)
+        self.assertEqual(payload["m_Item1"]["ResponseCode"], "200")
+        self.assertEqual(payload["m_Item1"]["ResponseType"], "Sucess")
+        self.assertEqual(payload["m_Item1"]["Description"], "AABB")
+
+    def test_downlink_route_rejects_overlong_hex(self):
+        client = build_client()
+        long_hex = "AA" * 1025  # 超过 1024 限制
+        response = client.post(
+            "/downlink",
+            data={"hex": long_hex},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too long", response.get_json()["error"])
+
+    @mock.patch.dict(server.app.config, {
+        "AES_GCM_ENABLED": False,
+        "AES_GCM_ENCRYPT_RESPONSE": False,
+        "RESPONSE_FORMAT": "json",
+        "DOWNLINK_HEX": "FE FE",
+    }, clear=False)
+    def test_index_shows_response_format_controls(self):
+        client = build_client()
+        client.post(
+            "/HMWSSBAPI/PostMeterReadingData",
+            data="AA" * 158,
+            content_type="text/plain",
+        )
+
+        response = client.get("/")
+        html = response.get_data(as_text=True)
+        self.assertIn("Response Format", html)
+        self.assertIn("Downlink Hex", html)
+        self.assertIn("FE FE", html)
+        self.assertIn("Response Data", html)
+
 
 if __name__ == "__main__":
     unittest.main()

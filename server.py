@@ -380,6 +380,7 @@ HTML_TEMPLATE = """
                 <th>Decode Status</th>
                 <th>Error</th>
                 <th>Raw Data</th>
+                <th>Response Data</th>
             </tr>
         </thead>
         <tbody>
@@ -404,11 +405,12 @@ HTML_TEMPLATE = """
                 <td>{{ item.HexDecodeStatus }}</td>
                 <td>{{ item.ErrorType }}{% if item.ErrorMsg %}: {{ item.ErrorMsg }}{% endif %}</td>
                 <td class="mono">{{ item.RawData }}</td>
+                <td class="mono" style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ item.ResponseData | e }}">{{ item.ResponseData | e }}</td>
             </tr>
             {% endfor %}
             {% if not data %}
             <tr>
-                <td colspan="13">No requests recorded.</td>
+                <td colspan="14">No requests recorded.</td>
             </tr>
             {% endif %}
         </tbody>
@@ -435,6 +437,7 @@ def record_entry(
     hex_decode_status,
     error_type="",
     error_msg="",
+    response_data="",
 ):
     entry = {
         "Pkey": len(HISTORY_DATA) + 1,
@@ -454,6 +457,7 @@ def record_entry(
         "ErrorType": error_type,
         "ErrorMsg": error_msg,
         "AuthHeader": auth_header or "",
+        "ResponseData": response_data,
     }
 
     if not auth_header:
@@ -707,6 +711,7 @@ def post_reading():
     length_passed = hex_decode_status == "OK" and protocol_byte_length == EXPECTED_BODY_LENGTH
 
     if not auth_passed:
+        resp_preview = build_json_response(401, "Auth Failed", "") if app.config.get("RESPONSE_FORMAT") == "json" else "faile"
         record_entry(
             success=False,
             raw_data=raw_text,
@@ -723,6 +728,7 @@ def post_reading():
             hex_decode_status=hex_decode_status,
             error_type="Auth Failed",
             error_msg="Authorization header is not in VALID_AUTH_KEYS",
+            response_data=resp_preview,
         )
         return response_text("faile", 401, "Auth Failed", "")
 
@@ -731,6 +737,7 @@ def post_reading():
             error_type = "Protocol Length Failed"
             error_msg = f"Decoded hex payload length must be {EXPECTED_BODY_LENGTH} bytes"
 
+        resp_preview = build_json_response(400, error_type or "Protocol Length Failed", "") if app.config.get("RESPONSE_FORMAT") == "json" else "faile"
         record_entry(
             success=False,
             raw_data=raw_text,
@@ -747,9 +754,11 @@ def post_reading():
             hex_decode_status=hex_decode_status,
             error_type=error_type,
             error_msg=error_msg,
+            response_data=resp_preview,
         )
         return response_text("faile", 400, error_type or "Protocol Length Failed", "")
 
+    resp_preview = build_json_response(200, "Sucess", downlink_hex) if app.config.get("RESPONSE_FORMAT") == "json" else "OK"
     record_entry(
         success=True,
         raw_data=raw_text,
@@ -764,6 +773,7 @@ def post_reading():
         request_crypto_status=request_crypto_status,
         response_crypto_status=response_crypto_status,
         hex_decode_status=hex_decode_status,
+        response_data=resp_preview,
     )
     return response_text("OK", 200, "Sucess", downlink_hex)
 

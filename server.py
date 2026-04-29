@@ -20,6 +20,7 @@ DEFAULT_AES_GCM_KEY_HEX = "b8286d10dc8ae670189223a299b0affb"
 DEFAULT_AES_GCM_RESPONSE_KEY_HEX = "45e036e26c95279ee61c8f452ee35543"
 DEFAULT_AES_GCM_KEY = bytes.fromhex(DEFAULT_AES_GCM_KEY_HEX)
 DEFAULT_AES_GCM_RESPONSE_KEY = bytes.fromhex(DEFAULT_AES_GCM_RESPONSE_KEY_HEX)
+DEFAULT_DOWNLINK_HEX = "FE FE 68 10 AA AA AA AA AA AA AA 25 04 30 05 00 00 7C 16"
 
 
 def env_flag(name, default=False):
@@ -53,6 +54,8 @@ app.config.setdefault("AES_GCM_REQUEST_AAD", load_bytes_env("AES_GCM_REQUEST_AAD
 app.config.setdefault("AES_GCM_RESPONSE_AAD", load_bytes_env("AES_GCM_RESPONSE_AAD"))
 app.config.setdefault("AES_GCM_KEY_STORE_PATH", os.getenv("AES_GCM_KEY_STORE_PATH"))
 app.config.setdefault("AES_GCM_ACTIVE_KEY_NAME", os.getenv("AES_GCM_ACTIVE_KEY_NAME", "default"))
+app.config.setdefault("RESPONSE_FORMAT", os.getenv("RESPONSE_FORMAT", "plaintext"))
+app.config.setdefault("DOWNLINK_HEX", os.getenv("DOWNLINK_HEX", DEFAULT_DOWNLINK_HEX))
 
 
 def aes_gcm_enabled():

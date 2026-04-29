@@ -403,8 +403,8 @@ HTML_TEMPLATE = """
                 <td>{{ item.RequestCryptoStatus }}</td>
                 <td>{{ item.ResponseCryptoStatus }}</td>
                 <td>{{ item.HexDecodeStatus }}</td>
-                <td>{{ item.ErrorType }}{% if item.ErrorMsg %}: {{ item.ErrorMsg }}{% endif %}</td>
-                <td class="mono">{{ item.RawData }}</td>
+                <td>{{ item.ErrorType | e }}{% if item.ErrorMsg %}: {{ item.ErrorMsg | e }}{% endif %}</td>
+                <td class="mono">{{ item.RawData | e }}</td>
                 <td class="mono" style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ item.ResponseData | e }}">{{ item.ResponseData | e }}</td>
             </tr>
             {% endfor %}

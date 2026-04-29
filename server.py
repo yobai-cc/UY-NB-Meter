@@ -466,6 +466,18 @@ def response_text(plain_text, status_code):
     return response
 
 
+def build_json_response(response_code, response_type, description=""):
+    import json
+    payload = {
+        "m_Item1": {
+            "ResponseCode": str(response_code),
+            "ResponseType": response_type,
+            "Description": description,
+        }
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
 def key_api_auth_error():
     auth_header = request.headers.get("Authorization")
     if auth_passed_for_header(auth_header):
